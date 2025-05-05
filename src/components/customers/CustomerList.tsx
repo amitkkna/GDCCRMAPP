@@ -42,6 +42,9 @@ export default function CustomerList({ customers, onEdit }: CustomerListProps) {
                 Number
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Meeting Person
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Location
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -55,7 +58,7 @@ export default function CustomerList({ customers, onEdit }: CustomerListProps) {
           <tbody className="bg-white divide-y divide-gray-200">
             {customers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+                <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
                   No customers found
                 </td>
               </tr>
@@ -67,6 +70,9 @@ export default function CustomerList({ customers, onEdit }: CustomerListProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {customer.number}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    {customer.meeting_person || '-'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
                     {customer.location}

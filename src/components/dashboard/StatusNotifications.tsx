@@ -121,8 +121,8 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
                       <span className="text-red-700 font-medium">{overdueLeads.length} Lead{overdueLeads.length !== 1 ? 's' : ''}</span>
                       <span className="text-gray-600"> past 7-day conversion window</span>
                     </div>
-                    <Link 
-                      href="/enquiries" 
+                    <Link
+                      href="/enquiries"
                       className="text-xs font-medium text-red-700 hover:text-red-900 bg-red-100 px-2 py-1 rounded-md"
                     >
                       View
@@ -137,8 +137,8 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
                       <span className="text-red-700 font-medium">{overdueEnquiries.length} Enquir{overdueEnquiries.length !== 1 ? 'ies' : 'y'}</span>
                       <span className="text-gray-600"> past 7-day quote window</span>
                     </div>
-                    <Link 
-                      href="/enquiries" 
+                    <Link
+                      href="/enquiries"
                       className="text-xs font-medium text-red-700 hover:text-red-900 bg-red-100 px-2 py-1 rounded-md"
                     >
                       View
@@ -153,8 +153,8 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
                       <span className="text-red-700 font-medium">{overdueQuotes.length} Quote{overdueQuotes.length !== 1 ? 's' : ''}</span>
                       <span className="text-gray-600"> past 15-day decision window</span>
                     </div>
-                    <Link 
-                      href="/enquiries" 
+                    <Link
+                      href="/enquiries"
                       className="text-xs font-medium text-red-700 hover:text-red-900 bg-red-100 px-2 py-1 rounded-md"
                     >
                       View
@@ -165,7 +165,7 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
             </ul>
           </div>
         )}
-        
+
         {totalWarning > 0 && (
           <div className="p-5 bg-amber-50">
             <h4 className="text-sm font-medium text-amber-800 mb-3 flex items-center">
@@ -180,8 +180,8 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
                       <span className="text-amber-700 font-medium">{warningLeads.length} Lead{warningLeads.length !== 1 ? 's' : ''}</span>
                       <span className="text-gray-600"> approaching 7-day conversion window</span>
                     </div>
-                    <Link 
-                      href="/enquiries" 
+                    <Link
+                      href="/enquiries"
                       className="text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-100 px-2 py-1 rounded-md"
                     >
                       View
@@ -196,8 +196,8 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
                       <span className="text-amber-700 font-medium">{warningEnquiries.length} Enquir{warningEnquiries.length !== 1 ? 'ies' : 'y'}</span>
                       <span className="text-gray-600"> approaching 7-day quote window</span>
                     </div>
-                    <Link 
-                      href="/enquiries" 
+                    <Link
+                      href="/enquiries"
                       className="text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-100 px-2 py-1 rounded-md"
                     >
                       View
@@ -212,8 +212,8 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
                       <span className="text-amber-700 font-medium">{warningQuotes.length} Quote{warningQuotes.length !== 1 ? 's' : ''}</span>
                       <span className="text-gray-600"> approaching 15-day decision window</span>
                     </div>
-                    <Link 
-                      href="/enquiries" 
+                    <Link
+                      href="/enquiries"
                       className="text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-100 px-2 py-1 rounded-md"
                     >
                       View
@@ -229,8 +229,9 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
         <div className="text-sm text-gray-600">
           <p className="mb-1"><span className="font-medium">Rules:</span></p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Leads should be converted to Enquiry within 7 days</li>
+            <li>Leads should be converted to Enquiry or Formal Meeting within 7 days</li>
             <li>Enquiries should be converted to Quote or Loss within 7 days</li>
+            <li>Formal Meetings should be converted to Quote or Loss within 7 days</li>
             <li>Quotes should be converted to Won or Loss within 15 days</li>
           </ul>
         </div>

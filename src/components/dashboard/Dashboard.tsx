@@ -59,6 +59,7 @@ export default function Dashboard() {
   const statusData = [
     { status: 'Lead', count: enquiries.filter(e => e.status === 'Lead').length, color: '#9CA3AF' },
     { status: 'Enquiry', count: enquiries.filter(e => e.status === 'Enquiry').length, color: '#3B82F6' },
+    { status: 'Formal Meeting', count: enquiries.filter(e => e.status === 'Formal Meeting').length, color: '#8B5CF6' },
     { status: 'Quote', count: enquiries.filter(e => e.status === 'Quote').length, color: '#FBBF24' },
     { status: 'Won', count: enquiries.filter(e => e.status === 'Won').length, color: '#10B981' },
     { status: 'Loss', count: enquiries.filter(e => e.status === 'Loss').length, color: '#EF4444' },

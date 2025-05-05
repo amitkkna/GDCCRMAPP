@@ -1,11 +1,12 @@
 export type Segment = 'Agri' | 'Corporate' | 'Others';
-export type Status = 'Lead' | 'Enquiry' | 'Quote' | 'Won' | 'Loss';
+export type Status = 'Lead' | 'Enquiry' | 'Formal Meeting' | 'Quote' | 'Won' | 'Loss';
 
 export interface Customer {
   id: string;
   name: string;
   number: string;
   location: string;
+  meeting_person?: string;
   created_at: string;
 }
 

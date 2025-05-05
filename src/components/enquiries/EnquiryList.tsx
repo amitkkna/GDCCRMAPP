@@ -14,6 +14,8 @@ export default function EnquiryList({ enquiries, onEdit }: EnquiryListProps) {
     switch (status) {
       case 'Enquiry':
         return 'bg-blue-100 text-blue-800';
+      case 'Formal Meeting':
+        return 'bg-purple-100 text-purple-800';
       case 'Quote':
         return 'bg-yellow-100 text-yellow-800';
       case 'Won':

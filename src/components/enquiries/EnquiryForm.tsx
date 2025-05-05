@@ -52,6 +52,7 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
   const statusOptions = [
     { value: 'Lead', label: 'Lead' },
     { value: 'Enquiry', label: 'Enquiry' },
+    { value: 'Formal Meeting', label: 'Formal Meeting' },
     { value: 'Quote', label: 'Quote' },
     { value: 'Won', label: 'Won' },
     { value: 'Loss', label: 'Loss' },
@@ -92,6 +93,7 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
             customer_id: customer.id,
             customer_name: customer.name,
             location: customer.location,
+            meeting_person: customer.meeting_person || '',
           }));
           setCustomerFound(true);
         }
@@ -136,6 +138,7 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
             customer_id: existingCustomer.id,
             customer_name: existingCustomer.name,
             location: existingCustomer.location,
+            meeting_person: existingCustomer.meeting_person || prev.meeting_person || '',
           };
           console.log('Updated form data with existing customer:', updated);
           return updated;
@@ -155,6 +158,7 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
           name: formData.customer_name,
           number: formData.number,
           location: formData.location,
+          meeting_person: formData.meeting_person,
         });
 
         console.log('New customer creation result:', newCustomer);

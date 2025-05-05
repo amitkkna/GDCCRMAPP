@@ -23,6 +23,7 @@ export default function StatusSummaryCard({ enquiries }: StatusSummaryCardProps)
     return (
       (e.status === 'Lead' && daysSince > 7) ||
       (e.status === 'Enquiry' && daysSince > 7) ||
+      (e.status === 'Formal Meeting' && daysSince > 7) ||
       (e.status === 'Quote' && daysSince > 15)
     );
   }).length;
@@ -33,6 +34,7 @@ export default function StatusSummaryCard({ enquiries }: StatusSummaryCardProps)
     return (
       (e.status === 'Lead' && daysSince >= 5 && daysSince <= 7) ||
       (e.status === 'Enquiry' && daysSince >= 5 && daysSince <= 7) ||
+      (e.status === 'Formal Meeting' && daysSince >= 5 && daysSince <= 7) ||
       (e.status === 'Quote' && daysSince >= 12 && daysSince <= 15)
     );
   }).length;

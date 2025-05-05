@@ -13,7 +13,7 @@ interface RemindersSectionProps {
 export default function RemindersSection({ enquiries, assignee }: RemindersSectionProps) {
   // Filter enquiries with reminders for today
   const today = new Date().toISOString().split('T')[0];
-  
+
   const reminders = enquiries.filter(
     (e) => e.reminder_date === today && e.assigned_to === assignee
   );
@@ -25,6 +25,8 @@ export default function RemindersSection({ enquiries, assignee }: RemindersSecti
         return 'bg-gray-100 text-gray-800';
       case 'Enquiry':
         return 'bg-blue-100 text-blue-800';
+      case 'Formal Meeting':
+        return 'bg-purple-100 text-purple-800';
       case 'Quote':
         return 'bg-yellow-100 text-yellow-800';
       case 'Won':
@@ -47,7 +49,7 @@ export default function RemindersSection({ enquiries, assignee }: RemindersSecti
           <div className="text-sm text-gray-500">{today}</div>
         </div>
       </div>
-      
+
       <div className="divide-y divide-gray-200">
         {reminders.length === 0 ? (
           <div className="p-6 text-center">
@@ -83,7 +85,7 @@ export default function RemindersSection({ enquiries, assignee }: RemindersSecti
           </ul>
         )}
       </div>
-      
+
       {reminders.length > 0 && (
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
           <Link
