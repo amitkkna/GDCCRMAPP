@@ -112,13 +112,30 @@ function EnquiriesPageContent() {
 
   const handleCreateEnquiry = async (data: Omit<Enquiry, 'id' | 'created_at'>) => {
     try {
+      console.log('Creating new enquiry with data:', data);
+
+      // Validate required fields before submission
+      if (!data.customer_id) {
+        console.error('Missing required field: customer_id');
+        setError('Customer ID is required to create an enquiry.');
+        return;
+      }
+
       const newEnquiry = await createEnquiry(data);
+      console.log('Response from createEnquiry:', newEnquiry);
+
       if (newEnquiry) {
-        setEnquiries((prev) => [newEnquiry, ...prev]);
+        console.log('Enquiry created successfully, updating state');
+        // Refresh the enquiries list to ensure we have the latest data
+        fetchEnquiries();
         setShowForm(false);
+      } else {
+        console.error('Failed to create enquiry - no data returned');
+        setError('Failed to create enquiry. Please try again.');
       }
     } catch (error) {
       console.error('Error creating enquiry:', error);
+      setError('An error occurred while creating the enquiry. Please try again.');
     }
   };
 

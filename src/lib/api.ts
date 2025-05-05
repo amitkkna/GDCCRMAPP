@@ -17,18 +17,31 @@ export async function getCustomers(): Promise<Customer[]> {
 }
 
 export async function getCustomerByNumber(number: string): Promise<Customer | null> {
-  const { data, error } = await supabase
-    .from('customers')
-    .select('*')
-    .eq('number', number)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('number', number)
+      .single();
 
-  if (error) {
+    if (error) {
+      // Check if it's a "no rows returned" error, which is expected when no customer is found
+      if (error.code === 'PGRST116') {
+        console.log('No customer found with number:', number);
+        return null; // No customer found with this number
+      }
+
+      // For other errors, log and throw
+      console.error('Error in getCustomerByNumber:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
     console.error('Error fetching customer by number:', error);
+    // Return null instead of throwing to prevent the app from crashing
     return null;
   }
-
-  return data;
 }
 
 export async function createCustomer(customer: Omit<Customer, 'id' | 'created_at'>): Promise<Customer | null> {
@@ -93,18 +106,35 @@ export async function getEnquiriesByAssignee(assignee: 'Amit' | 'Prateek'): Prom
 }
 
 export async function createEnquiry(enquiry: Omit<Enquiry, 'id' | 'created_at'>): Promise<Enquiry | null> {
-  const { data, error } = await supabase
-    .from('enquiries')
-    .insert([enquiry])
-    .select()
-    .single();
+  try {
+    console.log('Creating enquiry with data:', enquiry);
 
-  if (error) {
-    console.error('Error creating enquiry:', error);
+    // Validate required fields
+    if (!enquiry.date) console.warn('Missing required field: date');
+    if (!enquiry.customer_id) console.warn('Missing required field: customer_id');
+    if (!enquiry.customer_name) console.warn('Missing required field: customer_name');
+    if (!enquiry.number) console.warn('Missing required field: number');
+    if (!enquiry.location) console.warn('Missing required field: location');
+    if (!enquiry.status) console.warn('Missing required field: status');
+    if (!enquiry.assigned_to) console.warn('Missing required field: assigned_to');
+
+    const { data, error } = await supabase
+      .from('enquiries')
+      .insert([enquiry])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating enquiry:', error);
+      return null;
+    }
+
+    console.log('Enquiry created successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Exception in createEnquiry:', error);
     return null;
   }
-
-  return data;
 }
 
 export async function updateEnquiry(id: string, updates: Partial<Enquiry>): Promise<Enquiry | null> {

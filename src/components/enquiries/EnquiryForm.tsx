@@ -13,12 +13,13 @@ interface EnquiryFormProps {
 
 export default function EnquiryForm({ initialData, onSubmit, onCancel }: EnquiryFormProps) {
   // Initialize form data with default values and any provided initial data
-  const [formData, setFormData] = useState<Partial<Enquiry>>({
+  const [formData, setFormData] = useState<Partial<Enquiry & { meeting_person?: string }>>({
     date: new Date().toISOString().split('T')[0],
     segment: '',
     customer_name: '',
     number: '',
     location: '',
+    meeting_person: '',
     requirement_details: '',
     status: 'Lead',
     remarks: '',
@@ -104,14 +105,17 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
   };
 
   const handleCreateCustomer = async () => {
-    if (!formData.customer_name || !formData.number || !formData.location) {
-      setErrors({
+    console.log('Starting handleCreateCustomer with formData:', formData);
+
+    if (!formData.customer_name || !formData.number) {
+      const newErrors = {
         ...errors,
         customer_name: !formData.customer_name ? 'Customer name is required' : '',
         number: !formData.number ? 'Number is required' : '',
-        location: !formData.location ? 'Location is required' : '',
-      });
-      return;
+      };
+      console.log('Validation errors:', newErrors);
+      setErrors(newErrors);
+      return false;
     }
 
     setIsCreatingCustomer(true);
@@ -119,38 +123,64 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
 
     try {
       // First check if customer with this number already exists
+      console.log('Checking if customer exists with number:', formData.number);
       const existingCustomer = await getCustomerByNumber(formData.number);
+      console.log('Existing customer check result:', existingCustomer);
 
       if (existingCustomer) {
         // If customer exists, use that instead of creating a new one
-        setFormData((prev) => ({
-          ...prev,
-          customer_id: existingCustomer.id,
-          customer_name: existingCustomer.name,
-          location: existingCustomer.location,
-        }));
+        console.log('Customer found, using existing customer:', existingCustomer);
+        setFormData((prev) => {
+          const updated = {
+            ...prev,
+            customer_id: existingCustomer.id,
+            customer_name: existingCustomer.name,
+            location: existingCustomer.location,
+          };
+          console.log('Updated form data with existing customer:', updated);
+          return updated;
+        });
         setCustomerFound(true);
         setCustomerCreated(false);
+        return true;
       } else {
         // If customer doesn't exist, create a new one
+        console.log('Customer not found, creating new customer with:', {
+          name: formData.customer_name,
+          number: formData.number,
+          location: formData.location,
+        });
+
         const newCustomer = await createCustomer({
           name: formData.customer_name,
           number: formData.number,
           location: formData.location,
         });
 
+        console.log('New customer creation result:', newCustomer);
+
         if (newCustomer) {
-          setFormData((prev) => ({
-            ...prev,
-            customer_id: newCustomer.id,
-          }));
+          setFormData((prev) => {
+            const updated = {
+              ...prev,
+              customer_id: newCustomer.id,
+            };
+            console.log('Updated form data with new customer:', updated);
+            return updated;
+          });
           setCustomerCreated(true);
           setCustomerFound(false);
+          return true;
+        } else {
+          console.error('Failed to create customer - no data returned');
+          setApiError('Failed to create customer. Please try again.');
+          return false;
         }
       }
     } catch (error) {
       console.error('Error creating/finding customer:', error);
       setApiError('Failed to create customer. Please check your Supabase configuration.');
+      return false;
     } finally {
       setIsCreatingCustomer(false);
     }
@@ -163,7 +193,7 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
     if (!formData.segment) newErrors.segment = 'Segment is required';
     if (!formData.customer_name) newErrors.customer_name = 'Customer name is required';
     if (!formData.number) newErrors.number = 'Number is required';
-    if (!formData.location) newErrors.location = 'Location is required';
+    // Location is now optional
     if (!formData.status) newErrors.status = 'Status is required';
     if (!formData.assigned_to) newErrors.assigned_to = 'Assignee is required';
 
@@ -173,58 +203,182 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
 
   // Create customer if not found before submitting the form
   const ensureCustomerExists = async (): Promise<boolean> => {
+    console.log('Ensuring customer exists, current state:', {
+      customer_id: formData.customer_id,
+      customerCreated
+    });
+
     // If customer already exists or was just created, we're good
-    if (formData.customer_id || customerCreated) {
+    if (formData.customer_id) {
+      console.log('Customer ID already exists in form data, proceeding with submission');
       return true;
     }
 
+    if (customerCreated) {
+      console.log('Customer was created, but customer_id might be missing due to state update timing');
+      // Try to find the customer by number to ensure we have the ID
+      try {
+        const customer = await getCustomerByNumber(formData.number);
+        if (customer) {
+          console.log('Found customer by number:', customer);
+          // Update form data with customer ID
+          setFormData(prev => ({
+            ...prev,
+            customer_id: customer.id
+          }));
+          return true;
+        }
+      } catch (error) {
+        console.error('Error finding customer by number:', error);
+      }
+    }
+
     // Otherwise, create the customer first
-    await handleCreateCustomer();
+    console.log('Customer does not exist, creating customer first');
+    const result = await handleCreateCustomer();
+
+    console.log('Customer creation result:', result);
+    console.log('Updated form data after customer creation:', formData);
+
+    // Double-check that we have a customer_id after creation
+    if (result && !formData.customer_id) {
+      console.log('Customer created but ID not in form data, fetching customer again');
+      try {
+        const customer = await getCustomerByNumber(formData.number);
+        if (customer) {
+          console.log('Found customer after creation:', customer);
+          // Update form data with customer ID
+          setFormData(prev => ({
+            ...prev,
+            customer_id: customer.id
+          }));
+        }
+      } catch (error) {
+        console.error('Error finding customer after creation:', error);
+        return false;
+      }
+    }
 
     // Return true if customer was created successfully
-    return customerCreated;
+    return result;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted with data:', formData);
 
-    if (validateForm()) {
-      // First ensure customer exists in database
-      setIsLoading(true);
-      const customerExists = await ensureCustomerExists();
-      setIsLoading(false);
+    if (!validateForm()) {
+      console.log('Form validation failed');
+      return;
+    }
 
-      if (customerExists) {
-        console.log('Submitting final form data:', formData);
-        onSubmit(formData as Omit<Enquiry, 'id' | 'created_at'>);
+    // First ensure customer exists in database
+    setIsLoading(true);
+    try {
+      const customerExists = await ensureCustomerExists();
+
+      if (!customerExists) {
+        console.log('Failed to ensure customer exists');
+        setApiError('Failed to create or find customer. Please try again.');
+        return;
       }
+
+      // Get the latest form data after customer creation
+      // This is crucial because React state updates are asynchronous
+      // and the formData might not reflect the latest changes
+      let finalData;
+
+      // If we don't have a customer_id in the current formData, try to get it directly
+      if (!formData.customer_id) {
+        console.log('No customer_id in form data, attempting to retrieve it');
+        try {
+          const customer = await getCustomerByNumber(formData.number);
+          if (customer) {
+            console.log('Found customer for final submission:', customer);
+            finalData = {
+              ...formData,
+              customer_id: customer.id
+            };
+          } else {
+            console.error('Could not find customer by number for final submission');
+            setApiError('Could not find customer information. Please try again.');
+            return;
+          }
+        } catch (error) {
+          console.error('Error finding customer for final submission:', error);
+          setApiError('Error retrieving customer information. Please try again.');
+          return;
+        }
+      } else {
+        finalData = { ...formData };
+      }
+
+      console.log('Preparing to submit enquiry with data:', finalData);
+
+      // Final check for required fields
+      if (!finalData.customer_id) {
+        console.error('Missing customer_id in final submission data');
+        setApiError('Customer ID is missing. Please try again.');
+        return;
+      }
+
+      if (!finalData.date) {
+        console.error('Missing date in final submission data');
+        setApiError('Date is required. Please try again.');
+        return;
+      }
+
+      if (!finalData.status) {
+        console.error('Missing status in final submission data');
+        setApiError('Status is required. Please try again.');
+        return;
+      }
+
+      if (!finalData.assigned_to) {
+        console.error('Missing assigned_to in final submission data');
+        setApiError('Assignee is required. Please try again.');
+        return;
+      }
+
+      // Include the meeting_person field in the submission
+      const submissionData = {
+        ...finalData,
+        // Ensure meeting_person is included even if it's optional
+        meeting_person: finalData.meeting_person || ''
+      };
+      console.log('Submitting final form data:', submissionData);
+      onSubmit(submissionData as Omit<Enquiry, 'id' | 'created_at'>);
+    } catch (error) {
+      console.error('Error in form submission:', error);
+      setApiError('An error occurred during submission. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-8">
       {apiError && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md shadow-sm">
+        <div className="bg-red-50 border-l-4 border-red-400 p-5 rounded-md shadow-sm">
           <div className="flex">
             <div className="flex-shrink-0">
-              <AlertCircle className="h-5 w-5 text-red-400" />
+              <AlertCircle className="h-6 w-6 text-red-400" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-red-700">{apiError}</p>
+              <p className="text-base text-red-700">{apiError}</p>
             </div>
           </div>
         </div>
       )}
 
       {customerFound && (
-        <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-md shadow-sm">
+        <div className="bg-green-50 border-l-4 border-green-400 p-5 rounded-md shadow-sm">
           <div className="flex">
             <div className="flex-shrink-0">
-              <CheckCircle className="h-5 w-5 text-green-500" />
+              <CheckCircle className="h-6 w-6 text-green-500" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-green-700">
+              <p className="text-base text-green-700">
                 Customer found! Details have been auto-filled.
               </p>
             </div>
@@ -233,13 +387,13 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
       )}
 
       {customerCreated && (
-        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md shadow-sm">
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-5 rounded-md shadow-sm">
           <div className="flex">
             <div className="flex-shrink-0">
-              <UserPlus className="h-5 w-5 text-blue-500" />
+              <UserPlus className="h-6 w-6 text-blue-500" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-blue-700">
+              <p className="text-base text-blue-700">
                 New customer has been created successfully!
               </p>
             </div>
@@ -247,9 +401,9 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+      <div className="grid grid-cols-1 gap-y-8 gap-x-6 sm:grid-cols-6">
         <div className="sm:col-span-3">
-          <label htmlFor="date" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="date" className="block text-base font-medium text-gray-700 mb-2">
             Date <span className="text-red-500">*</span>
           </label>
           <div className="mt-1">
@@ -259,16 +413,17 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
               id="date"
               value={formData.date || ''}
               onChange={handleChange}
-              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md ${
                 errors.date ? 'border-red-300' : ''
               }`}
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             />
-            {errors.date && <p className="mt-2 text-sm text-red-600">{errors.date}</p>}
+            {errors.date && <p className="mt-2 text-sm font-medium text-red-600">{errors.date}</p>}
           </div>
         </div>
 
         <div className="sm:col-span-3">
-          <label htmlFor="segment" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="segment" className="block text-base font-medium text-gray-700 mb-2">
             Segment <span className="text-red-500">*</span>
           </label>
           <div className="mt-1">
@@ -277,9 +432,10 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
               name="segment"
               value={formData.segment || ''}
               onChange={handleChange}
-              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md ${
                 errors.segment ? 'border-red-300' : ''
               }`}
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             >
               <option value="">Select Segment</option>
               {segmentOptions.map((option) => (
@@ -288,17 +444,17 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
                 </option>
               ))}
             </select>
-            {errors.segment && <p className="mt-2 text-sm text-red-600">{errors.segment}</p>}
+            {errors.segment && <p className="mt-2 text-sm font-medium text-red-600">{errors.segment}</p>}
           </div>
         </div>
 
         <div className="sm:col-span-3">
-          <label htmlFor="number" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="number" className="block text-base font-medium text-gray-700 mb-2">
             Number <span className="text-red-500">*</span>
           </label>
           <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
             </div>
             <input
               type="text"
@@ -306,21 +462,22 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
               id="number"
               value={formData.number || ''}
               onChange={handleNumberChange}
-              className={`pl-10 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              className={`pl-12 focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md ${
                 errors.number ? 'border-red-300' : ''
               }`}
               placeholder="Enter customer number to search"
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             />
-            {errors.number && <p className="mt-2 text-sm text-red-600">{errors.number}</p>}
+            {errors.number && <p className="mt-2 text-sm font-medium text-red-600">{errors.number}</p>}
             {!customerFound && !customerCreated && formData.number && formData.number.length >= 10 && (
-              <div className="mt-2">
+              <div className="mt-3">
                 <button
                   type="button"
                   onClick={handleCreateCustomer}
                   disabled={isCreatingCustomer}
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                 >
-                  <UserPlus className="h-4 w-4 mr-1" />
+                  <UserPlus className="h-5 w-5 mr-2" />
                   {isCreatingCustomer ? 'Creating...' : 'Create New Customer'}
                 </button>
               </div>
@@ -329,7 +486,7 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
         </div>
 
         <div className="sm:col-span-3">
-          <label htmlFor="customer_name" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="customer_name" className="block text-base font-medium text-gray-700 mb-2">
             Customer Name <span className="text-red-500">*</span>
           </label>
           <div className="mt-1">
@@ -339,20 +496,21 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
               id="customer_name"
               value={formData.customer_name || ''}
               onChange={handleChange}
-              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md ${
                 errors.customer_name ? 'border-red-300' : ''
               }`}
               placeholder="Enter customer name"
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             />
             {errors.customer_name && (
-              <p className="mt-2 text-sm text-red-600">{errors.customer_name}</p>
+              <p className="mt-2 text-sm font-medium text-red-600">{errors.customer_name}</p>
             )}
           </div>
         </div>
 
-        <div className="sm:col-span-6">
-          <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-            Location <span className="text-red-500">*</span>
+        <div className="sm:col-span-3">
+          <label htmlFor="location" className="block text-base font-medium text-gray-700 mb-2">
+            Location
           </label>
           <div className="mt-1">
             <input
@@ -361,34 +519,54 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
               id="location"
               value={formData.location || ''}
               onChange={handleChange}
-              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md ${
                 errors.location ? 'border-red-300' : ''
               }`}
               placeholder="Enter location"
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             />
-            {errors.location && <p className="mt-2 text-sm text-red-600">{errors.location}</p>}
+            {errors.location && <p className="mt-2 text-sm font-medium text-red-600">{errors.location}</p>}
+          </div>
+        </div>
+
+        <div className="sm:col-span-3">
+          <label htmlFor="meeting_person" className="block text-base font-medium text-gray-700 mb-2">
+            Meeting Person Name
+          </label>
+          <div className="mt-1">
+            <input
+              type="text"
+              name="meeting_person"
+              id="meeting_person"
+              value={formData.meeting_person || ''}
+              onChange={handleChange}
+              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md"
+              placeholder="Enter meeting person name"
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
+            />
           </div>
         </div>
 
         <div className="sm:col-span-6">
-          <label htmlFor="requirement_details" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="requirement_details" className="block text-base font-medium text-gray-700 mb-2">
             Details of Requirement
           </label>
           <div className="mt-1">
             <textarea
               id="requirement_details"
               name="requirement_details"
-              rows={3}
+              rows={4}
               value={formData.requirement_details || ''}
               onChange={handleChange}
-              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md"
               placeholder="Enter requirement details"
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             />
           </div>
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="status" className="block text-base font-medium text-gray-700 mb-2">
             Status <span className="text-red-500">*</span>
           </label>
           <div className="mt-1">
@@ -400,9 +578,10 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
                 console.log('Status changed to:', e.target.value);
                 handleChange(e);
               }}
-              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md ${
                 errors.status ? 'border-red-300' : ''
               }`}
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             >
               <option value="">Select Status</option>
               {statusOptions.map((option) => (
@@ -411,12 +590,12 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
                 </option>
               ))}
             </select>
-            {errors.status && <p className="mt-2 text-sm text-red-600">{errors.status}</p>}
+            {errors.status && <p className="mt-2 text-sm font-medium text-red-600">{errors.status}</p>}
           </div>
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="assigned_to" className="block text-base font-medium text-gray-700 mb-2">
             Assigned To <span className="text-red-500">*</span>
           </label>
           <div className="mt-1">
@@ -425,9 +604,10 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
               name="assigned_to"
               value={formData.assigned_to || ''}
               onChange={handleChange}
-              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${
+              className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md ${
                 errors.assigned_to ? 'border-red-300' : ''
               }`}
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             >
               <option value="">Select Assignee</option>
               {assigneeOptions.map((option) => (
@@ -437,13 +617,13 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
               ))}
             </select>
             {errors.assigned_to && (
-              <p className="mt-2 text-sm text-red-600">{errors.assigned_to}</p>
+              <p className="mt-2 text-sm font-medium text-red-600">{errors.assigned_to}</p>
             )}
           </div>
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor="reminder_date" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="reminder_date" className="block text-base font-medium text-gray-700 mb-2">
             Reminder Date
           </label>
           <div className="mt-1">
@@ -453,41 +633,43 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
               id="reminder_date"
               value={formData.reminder_date || ''}
               onChange={handleChange}
-              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md"
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             />
           </div>
         </div>
 
         <div className="sm:col-span-6">
-          <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="remarks" className="block text-base font-medium text-gray-700 mb-2">
             Remarks
           </label>
           <div className="mt-1">
             <textarea
               id="remarks"
               name="remarks"
-              rows={3}
+              rows={4}
               value={formData.remarks || ''}
               onChange={handleChange}
-              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base py-3 px-4 border-gray-300 rounded-md"
               placeholder="Enter remarks"
+              style={{ color: '#000000', backgroundColor: '#ffffff' }}
             />
           </div>
         </div>
       </div>
 
-      <div className="flex justify-end space-x-3">
+      <div className="flex justify-end space-x-4 mt-8">
         <button
           type="button"
           onClick={onCancel}
-          className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="py-3 px-6 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isLoading}
-          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          className="inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         >
           {isLoading ? 'Loading...' : initialData?.id ? 'Update Enquiry' : 'Create Enquiry'}
         </button>

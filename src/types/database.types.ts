@@ -17,6 +17,7 @@ export interface Enquiry {
   customer_name: string;
   number: string;
   location: string;
+  meeting_person?: string;
   requirement_details: string;
   status: Status;
   remarks: string;
