@@ -4,6 +4,7 @@ CREATE TABLE customers (
   name TEXT NOT NULL,
   number TEXT NOT NULL UNIQUE,
   location TEXT NOT NULL,
+  meeting_person TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

@@ -175,6 +175,41 @@ export async function createEnquiry(enquiry: Omit<Enquiry, 'id' | 'created_at'>)
     }
 
     console.log('Enquiry created successfully:', data);
+
+    // Update the customer's meeting_person field if it's provided in the enquiry
+    // and not already set for the customer
+    if (enquiry.meeting_person && enquiry.customer_id) {
+      try {
+        // Get the current customer data
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('meeting_person')
+          .eq('id', enquiry.customer_id)
+          .single();
+
+        // If the customer doesn't have a meeting_person set, update it
+        if (customerData && !customerData.meeting_person) {
+          console.log('Updating customer meeting_person field with:', enquiry.meeting_person);
+
+          const { data: updatedCustomer, error: updateError } = await supabase
+            .from('customers')
+            .update({ meeting_person: enquiry.meeting_person })
+            .eq('id', enquiry.customer_id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Error updating customer meeting_person:', updateError);
+          } else {
+            console.log('Customer meeting_person updated successfully:', updatedCustomer);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking/updating customer meeting_person:', error);
+        // Don't fail the enquiry creation if this update fails
+      }
+    }
+
     return data;
   } catch (error) {
     console.error('Exception in createEnquiry:', error);
@@ -236,5 +271,41 @@ export async function updateEnquiry(id: string, updates: Partial<Enquiry>): Prom
   }
 
   console.log('Enquiry updated successfully:', data);
+
+  // Update the customer's meeting_person field if it's provided in the update
+  if (updates.meeting_person && data && data.customer_id) {
+    try {
+      // Get the current customer data
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('meeting_person')
+        .eq('id', data.customer_id)
+        .single();
+
+      // If the customer doesn't have a meeting_person set or it's different, update it
+      if (customerData &&
+          (!customerData.meeting_person ||
+           customerData.meeting_person !== updates.meeting_person)) {
+        console.log('Updating customer meeting_person field with:', updates.meeting_person);
+
+        const { data: updatedCustomer, error: updateError } = await supabase
+          .from('customers')
+          .update({ meeting_person: updates.meeting_person })
+          .eq('id', data.customer_id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating customer meeting_person:', updateError);
+        } else {
+          console.log('Customer meeting_person updated successfully:', updatedCustomer);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking/updating customer meeting_person:', error);
+      // Don't fail the enquiry update if this update fails
+    }
+  }
+
   return data;
 }
