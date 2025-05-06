@@ -53,6 +53,9 @@ export default function RecentEnquiries({ enquiries }: RecentEnquiriesProps) {
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Details
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Assigned To
               </th>
             </tr>
@@ -60,7 +63,7 @@ export default function RecentEnquiries({ enquiries }: RecentEnquiriesProps) {
           <tbody className="bg-white divide-y divide-gray-200">
             {enquiries.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+                <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
                   No recent enquiries found
                 </td>
               </tr>
@@ -85,6 +88,18 @@ export default function RecentEnquiries({ enquiries }: RecentEnquiriesProps) {
                     >
                       {enquiry.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    <div
+                      className="max-w-xs overflow-hidden cursor-help"
+                      title={enquiry.requirement_details || 'No details provided'}
+                    >
+                      {enquiry.requirement_details ?
+                        (enquiry.requirement_details.length > 30
+                          ? `${enquiry.requirement_details.substring(0, 30)}...`
+                          : enquiry.requirement_details)
+                        : '-'}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {enquiry.assigned_to}

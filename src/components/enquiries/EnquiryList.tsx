@@ -58,6 +58,9 @@ export default function EnquiryList({ enquiries, onEdit }: EnquiryListProps) {
               Status
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Details of Requirement
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Assigned To
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -89,6 +92,18 @@ export default function EnquiryList({ enquiries, onEdit }: EnquiryListProps) {
                 >
                   {enquiry.status}
                 </span>
+              </td>
+              <td className="px-6 py-4 text-sm text-gray-900">
+                <div
+                  className="max-w-xs overflow-hidden cursor-help"
+                  title={enquiry.requirement_details || 'No details provided'}
+                >
+                  {enquiry.requirement_details ?
+                    (enquiry.requirement_details.length > 50
+                      ? `${enquiry.requirement_details.substring(0, 50)}...`
+                      : enquiry.requirement_details)
+                    : '-'}
+                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {enquiry.assigned_to}
