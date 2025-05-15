@@ -660,6 +660,27 @@ export default function EnquiryForm({ initialData, onSubmit, onCancel }: Enquiry
             />
           </div>
         </div>
+
+        <div className="sm:col-span-6">
+          <div className="flex items-center mt-4">
+            <input
+              id="show_in_notification"
+              name="show_in_notification"
+              type="checkbox"
+              checked={formData.show_in_notification || false}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  show_in_notification: e.target.checked
+                });
+              }}
+              className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="show_in_notification" className="ml-3 block text-base font-medium text-gray-700">
+              Show in Notifications (will display Date, Customer, Requirement Details, and Overdue Days)
+            </label>
+          </div>
+        </div>
       </div>
 
       <div className="flex justify-end space-x-4 mt-8">

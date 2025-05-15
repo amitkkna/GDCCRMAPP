@@ -9,53 +9,86 @@ interface StatusSummaryCardProps {
 }
 
 export default function StatusSummaryCard({ enquiries }: StatusSummaryCardProps) {
-  // Calculate days since date
-  const getDaysSince = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const diffTime = Math.abs(today.getTime() - date.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
+  // Get today's date with time set to 00:00:00
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  // Count overdue items
-  const overdueCount = enquiries.filter(e => {
-    const daysSince = getDaysSince(e.date);
+  // Count today's reminders
+  const todayRemindersCount = enquiries.filter(e => {
+    if (!e.reminder_date) return false;
+
+    const reminderDate = new Date(e.reminder_date);
+    reminderDate.setHours(0, 0, 0, 0);
+
     return (
-      (e.status === 'Lead' && daysSince > 7) ||
-      (e.status === 'Enquiry' && daysSince > 7) ||
-      (e.status === 'Formal Meeting' && daysSince > 7) ||
-      (e.status === 'Quote' && daysSince > 15)
+      reminderDate.getTime() === today.getTime() &&
+      e.status !== 'Won' &&
+      e.status !== 'Loss'
     );
   }).length;
 
-  // Count warning items
-  const warningCount = enquiries.filter(e => {
-    const daysSince = getDaysSince(e.date);
+  // Count upcoming reminders (next 7 days)
+  const upcomingRemindersCount = enquiries.filter(e => {
+    if (!e.reminder_date) return false;
+
+    const reminderDate = new Date(e.reminder_date);
+    reminderDate.setHours(0, 0, 0, 0);
+
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+
     return (
-      (e.status === 'Lead' && daysSince >= 5 && daysSince <= 7) ||
-      (e.status === 'Enquiry' && daysSince >= 5 && daysSince <= 7) ||
-      (e.status === 'Formal Meeting' && daysSince >= 5 && daysSince <= 7) ||
-      (e.status === 'Quote' && daysSince >= 12 && daysSince <= 15)
+      reminderDate.getTime() > today.getTime() &&
+      reminderDate.getTime() <= nextWeek.getTime() &&
+      e.status !== 'Won' &&
+      e.status !== 'Loss'
     );
+  }).length;
+
+  // Count enquiries marked for notification
+  const notificationCount = enquiries.filter(e => {
+    // Check database field first - must be explicitly true
+    if (e.show_in_notification === true) {
+      return true;
+    }
+
+    // Check localStorage as a fallback, but only if database field is not false
+    if (e.show_in_notification !== false && typeof window !== 'undefined') {
+      const key = `notification_${e.id}`;
+      const isMarked = localStorage.getItem(key) === 'true';
+      if (isMarked) {
+        return true;
+      }
+    }
+
+    return false;
   }).length;
 
   // Get icon and colors based on counts
   const getIconAndColors = () => {
-    if (overdueCount > 0) {
+    if (notificationCount > 0) {
       return {
         icon: AlertTriangle,
-        iconColor: 'text-red-600',
-        iconBgColor: 'bg-red-100',
-        textColor: 'text-red-700',
-        bgColor: 'bg-red-50'
+        iconColor: 'text-pink-600',
+        iconBgColor: 'bg-pink-100',
+        textColor: 'text-pink-700',
+        bgColor: 'bg-pink-50'
       };
-    } else if (warningCount > 0) {
+    } else if (todayRemindersCount > 0) {
+      return {
+        icon: AlertTriangle,
+        iconColor: 'text-blue-600',
+        iconBgColor: 'bg-blue-100',
+        textColor: 'text-blue-700',
+        bgColor: 'bg-blue-50'
+      };
+    } else if (upcomingRemindersCount > 0) {
       return {
         icon: Clock,
-        iconColor: 'text-amber-600',
-        iconBgColor: 'bg-amber-100',
-        textColor: 'text-amber-700',
-        bgColor: 'bg-amber-50'
+        iconColor: 'text-indigo-600',
+        iconBgColor: 'bg-indigo-100',
+        textColor: 'text-indigo-700',
+        bgColor: 'bg-indigo-50'
       };
     } else {
       return {
@@ -69,7 +102,7 @@ export default function StatusSummaryCard({ enquiries }: StatusSummaryCardProps)
   };
 
   const { icon: Icon, iconColor, iconBgColor, textColor, bgColor } = getIconAndColors();
-  const totalCount = overdueCount + warningCount;
+  const totalCount = todayRemindersCount + upcomingRemindersCount + notificationCount;
 
   return (
     <div className={`bg-white overflow-hidden shadow-md rounded-lg border border-gray-100 hover:shadow-lg transition-shadow duration-300`}>
@@ -80,7 +113,7 @@ export default function StatusSummaryCard({ enquiries }: StatusSummaryCardProps)
           </div>
           <div className="ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-gray-500 truncate">Status Alerts</dt>
+              <dt className="text-sm font-medium text-gray-500 truncate">Task Alerts</dt>
               <dd>
                 <div className="text-2xl font-bold text-gray-900">{totalCount}</div>
               </dd>
@@ -91,20 +124,28 @@ export default function StatusSummaryCard({ enquiries }: StatusSummaryCardProps)
       <div className={`${bgColor} px-5 py-3 border-t border-gray-100`}>
         <div className="text-sm">
           {totalCount === 0 ? (
-            <span className="text-green-600">All items on track</span>
+            <span className="text-green-600">No pending tasks</span>
           ) : (
             <>
-              {overdueCount > 0 && (
-                <span className="text-red-600 font-medium">
-                  {overdueCount} overdue
+              {todayRemindersCount > 0 && (
+                <span className="text-blue-600 font-medium">
+                  {todayRemindersCount} for today
                 </span>
               )}
-              {overdueCount > 0 && warningCount > 0 && (
+              {todayRemindersCount > 0 && upcomingRemindersCount > 0 && (
                 <span className="text-gray-500"> • </span>
               )}
-              {warningCount > 0 && (
-                <span className="text-amber-600 font-medium">
-                  {warningCount} approaching deadline
+              {upcomingRemindersCount > 0 && (
+                <span className="text-indigo-600 font-medium">
+                  {upcomingRemindersCount} upcoming
+                </span>
+              )}
+              {(todayRemindersCount > 0 || upcomingRemindersCount > 0) && notificationCount > 0 && (
+                <span className="text-gray-500"> • </span>
+              )}
+              {notificationCount > 0 && (
+                <span className="text-pink-600 font-medium">
+                  {notificationCount} notification{notificationCount !== 1 ? 's' : ''}
                 </span>
               )}
             </>

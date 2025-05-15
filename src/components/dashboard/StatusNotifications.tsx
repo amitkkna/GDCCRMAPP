@@ -225,17 +225,7 @@ export default function StatusNotifications({ enquiries }: StatusNotificationsPr
           </div>
         )}
       </div>
-      <div className="px-5 py-4 bg-gray-50 border-t border-gray-200">
-        <div className="text-sm text-gray-600">
-          <p className="mb-1"><span className="font-medium">Rules:</span></p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Leads should be converted to Enquiry or Formal Meeting within 7 days</li>
-            <li>Enquiries should be converted to Quote or Loss within 7 days</li>
-            <li>Formal Meetings should be converted to Quote or Loss within 7 days</li>
-            <li>Quotes should be converted to Won or Loss within 15 days</li>
-          </ul>
-        </div>
-      </div>
+
     </div>
   );
 }

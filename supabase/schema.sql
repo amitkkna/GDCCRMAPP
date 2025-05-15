@@ -18,10 +18,24 @@ CREATE TABLE enquiries (
   number TEXT NOT NULL,
   location TEXT NOT NULL,
   requirement_details TEXT,
-  status TEXT NOT NULL CHECK (status IN ('Lead', 'Enquiry', 'Quote', 'Won', 'Loss')),
+  status TEXT NOT NULL CHECK (status IN ('Lead', 'Enquiry', 'Formal Meeting', 'Quote', 'Won', 'Loss')),
   remarks TEXT,
   reminder_date DATE,
   assigned_to TEXT NOT NULL CHECK (assigned_to IN ('Amit', 'Prateek')),
+  show_in_notification BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create tasks table
+CREATE TABLE tasks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  description TEXT,
+  enquiry_id UUID REFERENCES enquiries(id),
+  status TEXT NOT NULL CHECK (status IN ('Pending', 'Completed')),
+  assigned_to TEXT NOT NULL CHECK (assigned_to IN ('Amit', 'Prateek')),
+  due_date DATE,
+  completed_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -30,6 +44,9 @@ CREATE INDEX idx_enquiries_assigned_to ON enquiries(assigned_to);
 CREATE INDEX idx_enquiries_date ON enquiries(date);
 CREATE INDEX idx_enquiries_status ON enquiries(status);
 CREATE INDEX idx_customers_number ON customers(number);
+CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to);
+CREATE INDEX idx_tasks_enquiry_id ON tasks(enquiry_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;

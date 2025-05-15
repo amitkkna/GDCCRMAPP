@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Customer, Enquiry, Segment, Status } from '@/types/database.types';
+import { Customer, Enquiry, Segment, Status, Task, TaskStatus } from '@/types/database.types';
 
 // Customer API functions
 export async function getCustomers(): Promise<Customer[]> {
@@ -308,4 +308,291 @@ export async function updateEnquiry(id: string, updates: Partial<Enquiry>): Prom
   }
 
   return data;
+}
+
+// Task API functions
+export async function getTasks(): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching tasks:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function getTasksByStatus(status: TaskStatus): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('status', status)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error(`Error fetching ${status} tasks:`, error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function getTasksByAssignee(assignee: 'Amit' | 'Prateek'): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('assigned_to', assignee)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error(`Error fetching tasks for ${assignee}:`, error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function getTasksWithEnquiries(): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(`
+      *,
+      enquiry:enquiries(*)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching tasks with enquiries:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function getTasksByStatusWithEnquiries(status: TaskStatus): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(`
+      *,
+      enquiry:enquiries(*)
+    `)
+    .eq('status', status)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error(`Error fetching ${status} tasks with enquiries:`, error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function createTask(task: Omit<Task, 'id' | 'created_at' | 'completed_at'>): Promise<Task | null> {
+  console.log('Creating task with data:', task);
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert([task])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating task:', error);
+    console.error('Error details:', JSON.stringify(error));
+    return null;
+  }
+
+  console.log('Task created successfully:', data);
+  return data;
+}
+
+export async function updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
+  console.log('Updating task with ID:', id);
+  console.log('Update payload:', updates);
+
+  // If marking as completed, add the completed_at timestamp
+  if (updates.status === 'Completed' && !updates.completed_at) {
+    updates.completed_at = new Date().toISOString();
+  }
+
+  // If marking as pending, remove the completed_at timestamp
+  if (updates.status === 'Pending') {
+    updates.completed_at = null;
+  }
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating task:', error);
+    console.error('Error details:', JSON.stringify(error));
+    return null;
+  }
+
+  console.log('Task updated successfully:', data);
+  return data;
+}
+
+export async function deleteTask(id: string): Promise<boolean> {
+  console.log('Deleting task with ID:', id);
+
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting task:', error);
+    console.error('Error details:', JSON.stringify(error));
+    return false;
+  }
+
+  console.log('Task deleted successfully');
+  return true;
+}
+
+// Add show_in_notification column to enquiries table if it doesn't exist
+export async function addNotificationColumnIfNeeded(id: string): Promise<boolean> {
+  console.log('Checking if show_in_notification column exists...');
+
+  try {
+    // First, let's try a direct update to see if the column exists
+    const { error: updateError } = await supabase
+      .from('enquiries')
+      .update({ show_in_notification: false })
+      .eq('id', id);
+
+    // If there's no error, the column exists
+    if (!updateError) {
+      console.log('Column exists and was updated successfully');
+      return true;
+    }
+
+    // If there's an error about the column not existing, we need to handle it
+    if (updateError && updateError.message && updateError.message.includes('does not exist')) {
+      console.log('Column does not exist, we need to create it manually');
+
+      // Since we can't add columns through the Supabase JS client directly,
+      // we'll need to use a workaround by creating a temporary field in the client
+
+      // Let's inform the user about the issue
+      console.error('Database schema needs to be updated to include show_in_notification column');
+      console.error('Please run the migration script or add the column manually');
+
+      // For now, let's use a client-side workaround
+      console.log('Using client-side workaround for notification status');
+
+      // Store the notification status in localStorage
+      const key = `notification_${id}`;
+      localStorage.setItem(key, 'true');
+
+      return true;
+    }
+
+    // Some other error occurred
+    console.error('Error checking/updating column:', updateError);
+    console.error('Error details:', JSON.stringify(updateError));
+    return false;
+  } catch (error) {
+    console.error('Exception in addNotificationColumnIfNeeded:', error);
+    console.error('Error details:', JSON.stringify(error));
+    return false;
+  }
+}
+
+// Toggle notification status for an enquiry
+export async function toggleEnquiryNotification(id: string, value: boolean): Promise<boolean> {
+  console.log('Toggling notification status for enquiry ID:', id, 'to:', value);
+
+  try {
+    // First, check if the enquiry exists
+    const { data: enquiry, error: fetchError } = await supabase
+      .from('enquiries')
+      .select('id, show_in_notification')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching enquiry before toggle:', fetchError);
+      console.error('Error details:', JSON.stringify(fetchError));
+      return false;
+    }
+
+    if (!enquiry) {
+      console.error('Enquiry not found with ID:', id);
+      return false;
+    }
+
+    console.log('Current notification status:', enquiry.show_in_notification);
+
+    // Use a direct update approach for simplicity and reliability
+    console.log('Attempting to update notification status in database');
+    const { data, error } = await supabase
+      .from('enquiries')
+      .update({ show_in_notification: value })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      console.error('Error toggling notification status with update:', error);
+      console.error('Error details:', JSON.stringify(error));
+
+      // Last resort: use localStorage
+      console.log('Using localStorage as fallback');
+      const key = `notification_${id}`;
+      if (value) {
+        localStorage.setItem(key, 'true');
+        console.log('Notification status stored in localStorage:', key, 'true');
+      } else {
+        localStorage.removeItem(key);
+        console.log('Notification status removed from localStorage:', key);
+      }
+
+      // Force a refresh of the data by dispatching a custom event
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('notification-toggled', {
+          detail: { id, value }
+        }));
+        console.log('Dispatched notification-toggled event');
+      }
+
+      return true;
+    }
+
+    console.log('Notification status toggled successfully:', data);
+
+    // Verify the update was successful
+    const { data: verifyData, error: verifyError } = await supabase
+      .from('enquiries')
+      .select('id, show_in_notification')
+      .eq('id', id)
+      .single();
+
+    if (verifyError) {
+      console.error('Error verifying update:', verifyError);
+    } else {
+      console.log('Verified notification status after update:', verifyData.show_in_notification);
+    }
+
+    // Force a refresh of the data by dispatching a custom event
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notification-toggled', {
+        detail: { id, value }
+      }));
+      console.log('Dispatched notification-toggled event');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Exception in toggleEnquiryNotification:', error);
+    console.error('Error details:', JSON.stringify(error));
+    return false;
+  }
 }

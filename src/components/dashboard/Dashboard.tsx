@@ -6,7 +6,7 @@ import StatCard from './StatCard';
 import StatusChart from './StatusChart';
 import RecentEnquiries from './RecentEnquiries';
 import SegmentPieChart from './SegmentPieChart';
-import StatusNotifications from './StatusNotifications';
+import TaskNotifications from './TaskNotifications';
 import StatusSummaryCard from './StatusSummaryCard';
 import DashboardTabs from './DashboardTabs';
 import RemindersSection from './RemindersSection';
@@ -21,9 +21,47 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'Amit' | 'Prateek'>('Amit');
 
+  // Initial load and tab change
   useEffect(() => {
+    console.log('Dashboard: Loading enquiries for tab:', activeTab);
     fetchEnquiries();
   }, [activeTab]);
+
+  // Force refresh on mount
+  useEffect(() => {
+    console.log('Dashboard: Component mounted, forcing refresh');
+    fetchEnquiries();
+
+    // Check URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const refreshParam = urlParams.get('refresh');
+    if (refreshParam === 'true') {
+      console.log('Dashboard: Refresh parameter detected, forcing another refresh');
+      setTimeout(() => {
+        fetchEnquiries();
+      }, 1000);
+    }
+  }, []);
+
+  // Listen for notification toggle events
+  useEffect(() => {
+    const handleNotificationToggle = () => {
+      console.log('Dashboard received notification-toggled event, refreshing data');
+      fetchEnquiries();
+
+      // Force another refresh after a delay to ensure data is up to date
+      setTimeout(() => {
+        console.log('Dashboard: Performing delayed refresh after notification toggle');
+        fetchEnquiries();
+      }, 2000);
+    };
+
+    window.addEventListener('notification-toggled', handleNotificationToggle);
+
+    return () => {
+      window.removeEventListener('notification-toggled', handleNotificationToggle);
+    };
+  }, []);
 
   const fetchEnquiries = async () => {
     setIsLoading(true);
@@ -106,7 +144,14 @@ export default function Dashboard() {
     <MainLayout title="Dashboard" subtitle={`${activeTab}'s Dashboard`}>
       {/* Header with tabs and new enquiry button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-        <DashboardTabs activeTab={activeTab} onTabChange={handleTabChange} />
+        <DashboardTabs
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onRefresh={() => {
+            console.log('Dashboard refresh button clicked');
+            fetchEnquiries();
+          }}
+        />
 
         <Link
           href="/enquiries?new=true"
@@ -146,7 +191,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <StatusNotifications enquiries={enquiries} />
+        <TaskNotifications enquiries={enquiries} assignee={activeTab} />
         <RemindersSection enquiries={enquiries} assignee={activeTab} />
       </div>
 

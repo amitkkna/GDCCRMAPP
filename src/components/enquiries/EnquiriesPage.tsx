@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { Enquiry, Customer } from '@/types/database.types';
-import { getEnquiries, createEnquiry, updateEnquiry, getCustomers } from '@/lib/api';
+import { getEnquiries, createEnquiry, updateEnquiry, getCustomers, toggleEnquiryNotification } from '@/lib/api';
 import MainLayout from '../layout/MainLayout';
 import EnquiryList from './EnquiryList';
 import EnquiryForm from './EnquiryForm';
@@ -162,6 +162,102 @@ function EnquiriesPageContent() {
   const handleEditEnquiry = (enquiry: Enquiry) => {
     setCurrentEnquiry(enquiry);
     setShowForm(true);
+  };
+
+  const handleToggleNotification = async (enquiry: Enquiry, value: boolean) => {
+    try {
+      setIsLoading(true);
+      console.log('Toggling notification for enquiry:', enquiry.id, enquiry.customer_name, 'to', value);
+
+      // First, update the UI immediately for better user experience
+      // Update the enquiry in the local state
+      setEnquiries(prevEnquiries =>
+        prevEnquiries.map(e =>
+          e.id === enquiry.id ? { ...e, show_in_notification: value } : e
+        )
+      );
+
+      // Also update filtered enquiries if they exist
+      if (filteredEnquiries.length > 0) {
+        setFilteredEnquiries(prevFiltered =>
+          prevFiltered.map(e =>
+            e.id === enquiry.id ? { ...e, show_in_notification: value } : e
+          )
+        );
+      }
+
+      // Then, save to the database
+      const success = await toggleEnquiryNotification(enquiry.id, value);
+
+      if (success) {
+        console.log('Toggle successful, notification status updated');
+
+        // Force a refresh of the data to ensure we have the latest state
+        // This will also refresh the dashboard via the custom event
+        setTimeout(() => {
+          console.log('Refreshing data after notification toggle');
+          fetchEnquiries();
+
+          // Also dispatch a custom event to refresh the dashboard
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('notification-toggled', {
+              detail: { id: enquiry.id, value }
+            }));
+            console.log('Manually dispatched notification-toggled event');
+
+            // Show a success message
+            const message = value
+              ? 'Notification enabled! This enquiry will now appear in the dashboard notifications.'
+              : 'Notification disabled! This enquiry will no longer appear in the dashboard notifications.';
+
+            alert(message);
+
+            // Navigate to the dashboard to see the notification
+            if (value && confirm('Would you like to go to the dashboard to see the notification?')) {
+              window.location.href = '/?refresh=true';
+            }
+          }
+        }, 500);
+      } else {
+        console.error('Failed to toggle notification status');
+        setError('Failed to update notification status. Please try again.');
+
+        // Revert the UI changes
+        setEnquiries(prevEnquiries =>
+          prevEnquiries.map(e =>
+            e.id === enquiry.id ? { ...e, show_in_notification: !value } : e
+          )
+        );
+
+        if (filteredEnquiries.length > 0) {
+          setFilteredEnquiries(prevFiltered =>
+            prevFiltered.map(e =>
+              e.id === enquiry.id ? { ...e, show_in_notification: !value } : e
+            )
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling notification:', error);
+      setError('An error occurred while updating notification status.');
+
+      // Revert the UI changes
+      setEnquiries(prevEnquiries =>
+        prevEnquiries.map(e =>
+          e.id === enquiry.id ? { ...e, show_in_notification: !value } : e
+        )
+      );
+
+      if (filteredEnquiries.length > 0) {
+        setFilteredEnquiries(prevFiltered =>
+          prevFiltered.map(e =>
+            e.id === enquiry.id ? { ...e, show_in_notification: !value } : e
+          )
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleNewEnquiry = () => {
@@ -429,6 +525,7 @@ function EnquiriesPageContent() {
                 <EnquiryList
                   enquiries={filteredEnquiries}
                   onEdit={handleEditEnquiry}
+                  onToggleNotification={handleToggleNotification}
                 />
               </>
             )}

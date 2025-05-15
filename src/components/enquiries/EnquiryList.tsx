@@ -7,9 +7,25 @@ import { Edit, Eye } from 'lucide-react';
 interface EnquiryListProps {
   enquiries: Enquiry[];
   onEdit: (enquiry: Enquiry) => void;
+  onToggleNotification?: (enquiry: Enquiry, value: boolean) => void;
 }
 
-export default function EnquiryList({ enquiries, onEdit }: EnquiryListProps) {
+export default function EnquiryList({ enquiries, onEdit, onToggleNotification }: EnquiryListProps) {
+  // Helper function to check if an enquiry is marked for notification
+  const isMarkedForNotification = (enquiry: Enquiry): boolean => {
+    // First check the database field
+    if (enquiry.show_in_notification) {
+      return true;
+    }
+
+    // If not found in database, check localStorage (our client-side workaround)
+    if (typeof window !== 'undefined') {
+      const key = `notification_${enquiry.id}`;
+      return localStorage.getItem(key) === 'true';
+    }
+
+    return false;
+  };
   const getStatusColor = (status: Status): string => {
     switch (status) {
       case 'Enquiry':
@@ -66,6 +82,9 @@ export default function EnquiryList({ enquiries, onEdit }: EnquiryListProps) {
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Reminder
             </th>
+            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Notify
+            </th>
             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
             </th>
@@ -111,15 +130,38 @@ export default function EnquiryList({ enquiries, onEdit }: EnquiryListProps) {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                 {enquiry.reminder_date ? formatDate(enquiry.reminder_date) : '-'}
               </td>
+              <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                {onToggleNotification ? (
+                  <div className="flex justify-center">
+                    <input
+                      type="checkbox"
+                      checked={isMarkedForNotification(enquiry)}
+                      onChange={(e) => onToggleNotification(enquiry, e.target.checked)}
+                      className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                      title="Show in notifications"
+                    />
+                  </div>
+                ) : (
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    isMarkedForNotification(enquiry)
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {isMarkedForNotification(enquiry) ? 'Yes' : 'No'}
+                  </span>
+                )}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <button
                   onClick={() => onEdit(enquiry)}
-                  className="text-blue-600 hover:text-blue-900 mr-4"
+                  className="text-blue-600 hover:text-blue-900 mr-3"
+                  title="Edit Enquiry"
                 >
                   <Edit className="h-5 w-5" />
                 </button>
                 <button
                   className="text-gray-600 hover:text-gray-900"
+                  title="View Enquiry"
                 >
                   <Eye className="h-5 w-5" />
                 </button>
