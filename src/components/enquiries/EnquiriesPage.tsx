@@ -3,10 +3,11 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Enquiry, Customer } from '@/types/database.types';
 import { getEnquiries, createEnquiry, updateEnquiry, getCustomers, toggleEnquiryNotification } from '@/lib/api';
+import { exportEnquiriesToExcel, exportFilteredEnquiriesToExcel } from '@/lib/excelExport';
 import MainLayout from '../layout/MainLayout';
 import EnquiryList from './EnquiryList';
 import EnquiryForm from './EnquiryForm';
-import { PlusCircle, AlertCircle, Filter, Calendar, Search, X } from 'lucide-react';
+import { PlusCircle, AlertCircle, Filter, Calendar, Search, X, Download } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 function EnquiriesPageContent() {
@@ -265,6 +266,45 @@ function EnquiriesPageContent() {
     setShowForm(true);
   };
 
+  const handleExportToExcel = () => {
+    try {
+      console.log('Starting Excel export...');
+      console.log('Total enquiries:', enquiries.length);
+      console.log('Filtered enquiries:', filteredEnquiries.length);
+
+      const currentFilters = {
+        assignee: assigneeFilter,
+        status: statusFilter,
+        fromDate: fromDateFilter,
+        toDate: toDateFilter
+      };
+
+      // Check if any filters are applied
+      const hasFilters = assigneeFilter !== 'All' ||
+                        statusFilter !== 'All' ||
+                        fromDateFilter ||
+                        toDateFilter;
+
+      console.log('Has filters:', hasFilters);
+      console.log('Current filters:', currentFilters);
+
+      if (hasFilters) {
+        console.log('Exporting filtered enquiries...');
+        exportFilteredEnquiriesToExcel(filteredEnquiries, currentFilters);
+      } else {
+        console.log('Exporting all enquiries...');
+        exportEnquiriesToExcel(enquiries);
+      }
+
+      // Show success message
+      alert('Excel file has been downloaded successfully!');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      console.error('Error details:', error);
+      alert(`Failed to export data to Excel. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const handleCancel = () => {
     setShowForm(false);
     setCurrentEnquiry(null);
@@ -432,14 +472,25 @@ function EnquiriesPageContent() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={handleNewEnquiry}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <PlusCircle className="-ml-1 mr-2 h-5 w-5" />
-              New Enquiry
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={handleExportToExcel}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                title="Export enquiries to Excel"
+              >
+                <Download className="-ml-1 mr-2 h-5 w-5" />
+                Export Excel
+              </button>
+              <button
+                type="button"
+                onClick={handleNewEnquiry}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <PlusCircle className="-ml-1 mr-2 h-5 w-5" />
+                New Enquiry
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Customer } from '@/types/database.types';
 import { getCustomers, createCustomer, updateCustomer } from '@/lib/api';
+import { exportCustomersToExcel } from '@/lib/excelExport';
 import MainLayout from '../layout/MainLayout';
 import CustomerList from './CustomerList';
 import CustomerForm from './CustomerForm';
-import { PlusCircle, AlertCircle, Search } from 'lucide-react';
+import { PlusCircle, AlertCircle, Search, Download } from 'lucide-react';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -102,6 +103,36 @@ export default function CustomersPage() {
     }
   };
 
+  const handleExportToExcel = () => {
+    try {
+      console.log('Starting customer Excel export...');
+      console.log('Total customers:', customers.length);
+      console.log('Filtered customers:', filteredCustomers.length);
+      console.log('Search term:', searchTerm);
+
+      // Use filtered customers if search is applied, otherwise use all customers
+      const customersToExport = searchTerm ? filteredCustomers : customers;
+
+      console.log('Customers to export:', customersToExport.length);
+
+      // Add search term to filename if applicable
+      const filename = searchTerm
+        ? `customers_search_${searchTerm}_${new Date().toISOString().split('T')[0]}.xlsx`
+        : undefined;
+
+      console.log('Export filename:', filename);
+
+      exportCustomersToExcel(customersToExport, filename);
+
+      // Show success message
+      alert('Excel file has been downloaded successfully!');
+    } catch (error) {
+      console.error('Error exporting customers to Excel:', error);
+      console.error('Error details:', error);
+      alert(`Failed to export data to Excel. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   return (
     <MainLayout title="Customers" subtitle="View your customer database">
       {error && (
@@ -144,6 +175,16 @@ export default function CustomersPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+
+          <button
+            type="button"
+            onClick={handleExportToExcel}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            title="Export customers to Excel"
+          >
+            <Download className="-ml-1 mr-2 h-5 w-5" />
+            Export Excel
+          </button>
         </div>
       </div>
 
